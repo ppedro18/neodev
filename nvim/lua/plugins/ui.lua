@@ -141,6 +141,8 @@ return {
 
         { "<leader>b", group = "Pestañas", icon = "󰓩 " },
         { "<leader>bd", desc = "Cerrar pestaña" },
+        { "<leader>bo", desc = "Cerrar las demás pestañas" },
+        { "<leader>bp", desc = "Elegir pestaña para cerrar" },
 
         { "<leader>c", group = "Código", icon = " " },
         { "<leader>ca", desc = "Code action (LSP)" },
@@ -318,6 +320,11 @@ return {
         function() require("mini.bufremove").delete(0, false) end,
         desc = "Cerrar pestaña",
       },
+      -- Ambos vienen de fábrica en bufferline.nvim (M.close_others /
+      -- M.close_with_pick, registrados como :BufferLineCloseOthers y
+      -- :BufferLinePickClose) — no había keymap para ninguno de los dos.
+      { "<leader>bo", "<cmd>BufferLineCloseOthers<CR>", desc = "Cerrar las demás pestañas" },
+      { "<leader>bp", "<cmd>BufferLinePickClose<CR>", desc = "Elegir pestaña para cerrar" },
     },
     opts = {
       options = { diagnostics = "nvim_lsp", separator_style = "slant" },

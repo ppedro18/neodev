@@ -477,9 +477,12 @@ Para verlo en caliente dentro de nvim, sin leer código:
 |---|---|
 | `<leader>ff` / `<leader>fg` | Buscar archivos / texto (Telescope) |
 | `<leader>e` | Explorador de archivos (Snacks Explorer) |
+| `<leader><leader>` | Cheatsheet: todos los atajos reales, agrupados (estilo NvChad) |
 | `<leader>-` / `<leader>cw` | Yazi: en el archivo actual / en el directorio del proyecto |
 | `<S-h>` / `<S-l>` | Buffer anterior / siguiente |
-| `<leader>bd` | Cerrar buffer |
+| `<leader>bd` | Cerrar pestaña activa |
+| `<leader>bo` | Cerrar las demás pestañas (deja solo la activa) |
+| `<leader>bp` | Elegir con una letra qué pestaña cerrar (sin saltar a ella) |
 | `<leader>gg` | LazyGit (ventana flotante) |
 | `<leader>gd` | Diff de cambios sin commitear (Diffview) |
 | `<leader>u` | Historial de cambios / undo tree (telescope-undo.nvim) |
