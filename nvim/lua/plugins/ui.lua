@@ -27,6 +27,15 @@ local function ask_open_window(path, cb)
   end)
 end
 
+-- "Acá mismo" de ask_open_window: antes esto era solo `vim.cmd.cd(p)` en
+-- los 3 call-sites de abajo (dashboard, <leader>fp, <leader>fo) — cambiaba
+-- el cwd pero no abría nada visible, así que elegir "Acá mismo" parecía no
+-- hacer nada. Abrimos el explorer ahí para que se vea el proyecto nuevo.
+local function open_project_here(path)
+  vim.cmd.cd(path)
+  Snacks.explorer({ cwd = path })
+end
+
 -- Usado por <leader>fp y por la sección "p" del dashboard — mismo picker,
 -- misma config, para no mantenerla duplicada en dos lugares.
 local function open_projects_picker()
@@ -40,9 +49,7 @@ local function open_projects_picker()
     confirm = function(picker, item)
       picker:close()
       if not item then return end
-      ask_open_window(item.file, {
-        on_same_window = function(p) vim.cmd.cd(p) end,
-      })
+      ask_open_window(item.file, { on_same_window = open_project_here })
     end,
   })
 end
@@ -382,9 +389,7 @@ return {
                 end
                 local dir = chosen_file or state.last_directory.filename
                 vim.schedule(function()
-                  ask_open_window(dir, {
-                    on_same_window = function(p) vim.cmd.cd(p) end,
-                  })
+                  ask_open_window(dir, { on_same_window = open_project_here })
                 end)
               end,
             },
@@ -536,7 +541,7 @@ Android · Angular]],
             indent = 2,
             padding = 2,
             action = function(dir)
-              ask_open_window(dir, { on_same_window = function(p) vim.cmd.cd(p) end })
+              ask_open_window(dir, { on_same_window = open_project_here })
             end,
           },
           { section = "startup" },
