@@ -1,0 +1,4 @@
+.DS_Store
+
+# Bytecode compilado (javac, ver README de esa carpeta) — se regenera, no es fuente.
+nvim/compose-preview-interactive/classes/

@@ -1,0 +1,254 @@
+// Override de ntsk/compose-preview.nvim/gradle/compose-preview.init.gradle:
+// nvim_get_runtime_file busca este path en todo el runtimepath y usa el
+// primer match, y nvim/ (este repo) va antes que los plugins de lazy.nvim —
+// así que ESTE archivo gana sobre el del plugin, sin tocar sus archivos
+// instalados (sobrevive a :Lazy sync/update).
+//
+// Por qué hace falta: detectVariants original busca tasks
+// "process<Variante>Resources", que AGP solo registra para módulos
+// com.android.application. En un módulo com.android.library (ej.
+// bbank-bmovil-components-android-mod) esa task no existe — lo único que
+// matchea el patrón son las de Navigation Safe Args
+// (processDebugNavigationResources), que no tienen compile*Kotlin
+// correspondiente, así que la lista de variantes quedaba siempre vacía
+// ("variant nil not found"), confirmado reproduciendo la task a mano.
+// Fix: detectar variantes desde "compile<Variante>Kotlin"/"...JavaWithJavac"
+// en vez de "process<Variante>Resources" — esas tasks sí existen igual en
+// library y en application. Todo lo demás es idéntico al original.
+import org.gradle.api.attributes.Attribute
+import org.gradle.api.artifacts.ProjectDependency
+
+def excludedVariantSuffixes = ['AndroidTest', 'UnitTest', 'ScreenshotTest', 'Test']
+
+def detectVariants = { project ->
+    def names = project.tasks.names
+    def found = []
+    names.each { name ->
+        ['Kotlin', 'JavaWithJavac'].each { suffix ->
+            def matcher = name =~ /^compile(.+)${suffix}$/
+            if (matcher.matches()) {
+                def capitalized = matcher.group(1)
+                if (!excludedVariantSuffixes.any { capitalized.endsWith(it) }) {
+                    found << capitalized[0].toLowerCase() + capitalized.substring(1)
+                }
+            }
+        }
+    }
+    return found.unique().sort()
+}
+
+def pickVariant = { variants ->
+    def debugVariants = variants.findAll { it.toLowerCase().endsWith('debug') }
+    return (debugVariants ?: variants).min { it.length() }
+}
+
+// AGP solo linkea un APK de recursos (.ap_, en linked_resources_binary_format) para
+// módulos `application` — en `library` esa carpeta nunca existe (confirmado
+// reproduciendo la task a mano), así que ningún @Preview en un módulo library puede
+// renderizar por sí solo. Workaround: para un módulo library, prestamos el .ap_ de un
+// módulo `application` hermano que lo tenga como dependencia (`implementation`/`api`)
+// en el mismo build — el namespace/classpath siguen siendo los del propio módulo
+// library, solo el APK de recursos viene prestado. `-PcomposePreviewHostProject=:app`
+// lo fuerza si hay más de un candidato o el auto-detect encuentra ninguno.
+def findHostApplicationProject = { libraryProject ->
+    def requested = libraryProject.findProperty('composePreviewHostProject')?.toString()
+    if (requested) {
+        return libraryProject.rootProject.findProject(requested)
+    }
+
+    def hosts = []
+    libraryProject.rootProject.allprojects { candidate ->
+        candidate.plugins.withId('com.android.application') {
+            def dependsOnLibrary = ['implementation', 'api'].any { configName ->
+                candidate.configurations.findByName(configName)?.dependencies?.withType(ProjectDependency)?.any {
+                    it.dependencyProject == libraryProject
+                }
+            }
+            if (dependsOnLibrary) {
+                hosts << candidate
+            }
+        }
+    }
+    return hosts.size() == 1 ? hosts[0] : null
+}
+
+def findResourceApk = { project, variant ->
+    def resourceApk = null
+    def apkDir = new File(project.layout.buildDirectory.get().asFile, "intermediates/linked_resources_binary_format/${variant}")
+    if (apkDir.isDirectory()) {
+        apkDir.eachFileRecurse { f ->
+            if (f.name.endsWith('.ap_')) {
+                resourceApk = f.absolutePath
+            }
+        }
+    }
+    return resourceApk
+}
+
+// El R.jar de un módulo library solo trae el R class del propio namespace
+// (compile_r_class_jar). El R class "no-transitivo" por cada dependencia — p.ej.
+// androidx.customview.poolingcontainer.R$id, que ComposeView usa internamente en su
+// <clinit> — solo se genera en compile_and_runtime_*_r_class_jar, y esa task solo
+// existe en módulos application (confirmado: faltaba, tiraba
+// ClassNotFoundException en androidx.customview.poolingcontainer.R$id al renderizar
+// un preview en library con solo su propio R.jar prestando el resourceApk).
+def findRClassJar = { project, variant ->
+    def rClassJar = null
+    [
+        "intermediates/compile_and_runtime_not_namespaced_r_class_jar/${variant}",
+        "intermediates/compile_and_runtime_r_class_jar/${variant}",
+        "intermediates/compile_r_class_jar/${variant}",
+    ].each { relative ->
+        if (rClassJar != null) {
+            return
+        }
+        def dir = new File(project.layout.buildDirectory.get().asFile, relative)
+        if (dir.isDirectory()) {
+            dir.eachFileRecurse { f ->
+                if (rClassJar == null && f.name == 'R.jar') {
+                    rClassJar = f.absolutePath
+                }
+            }
+        }
+    }
+    return rClassJar
+}
+
+gradle.projectsEvaluated {
+    gradle.rootProject.allprojects { p ->
+        ['com.android.application', 'com.android.library'].each { pluginId ->
+            p.plugins.withId(pluginId) {
+                def isLibrary = pluginId == 'com.android.library'
+                def variants = detectVariants(p)
+                def requested = p.findProperty('composePreviewVariant')?.toString()
+                def variant = requested ?: pickVariant(variants)
+
+                def resourceHost = null
+                def resourceHostVariant = null
+                if (isLibrary && variant && variants.contains(variant)) {
+                    resourceHost = findHostApplicationProject(p)
+                    if (resourceHost) {
+                        resourceHostVariant = p.findProperty('composePreviewHostVariant')?.toString() ?:
+                            pickVariant(detectVariants(resourceHost))
+                    }
+                }
+
+                p.tasks.register('composePreviewInfo') {
+                    if (variant && variants.contains(variant)) {
+                        def capitalized = variant[0].toUpperCase() + variant.substring(1)
+                        // process<Variant>Resources solo existe en módulos application; en
+                        // library no (confirmado) — sin este chequeo, dependsOn tira "task
+                        // not found" apenas detectVariants encuentra algo en un módulo library.
+                        if (p.tasks.names.contains("process${capitalized}Resources")) {
+                            dependsOn "${p.path}:process${capitalized}Resources"
+                        }
+                        if (p.tasks.names.contains("compile${capitalized}Kotlin")) {
+                            dependsOn "${p.path}:compile${capitalized}Kotlin"
+                        }
+                    }
+                    if (resourceHost && resourceHostVariant) {
+                        def hostCapitalized = resourceHostVariant[0].toUpperCase() + resourceHostVariant.substring(1)
+                        if (resourceHost.tasks.names.contains("process${hostCapitalized}Resources")) {
+                            dependsOn "${resourceHost.path}:process${hostCapitalized}Resources"
+                        }
+                    }
+
+                    doLast {
+                        def emit = { payload ->
+                            def json = groovy.json.JsonOutput.toJson(payload)
+                            def destination = p.findProperty('composePreviewOutput')
+                            if (destination) {
+                                def file = new File(destination.toString())
+                                file.parentFile?.mkdirs()
+                                file.text = json
+                            } else {
+                                println 'COMPOSE_PREVIEW_INFO_BEGIN'
+                                println json
+                                println 'COMPOSE_PREVIEW_INFO_END'
+                            }
+                        }
+
+                        if (!variant || !variants.contains(variant)) {
+                            emit([
+                                project          : p.path,
+                                variant          : variant,
+                                availableVariants: variants,
+                                error            : "variant '${variant}' not found",
+                            ])
+                            return
+                        }
+
+                        def artifactType = Attribute.of('artifactType', String)
+                        def configuration = p.configurations.getByName("${variant}RuntimeClasspath")
+
+                        def dependencies = configuration.incoming.artifactView { view ->
+                            view.attributes.attribute(artifactType, 'android-classes-jar')
+                            view.lenient(true)
+                        }.files.files
+
+                        def capitalizedVariant = variant[0].toUpperCase() + variant.substring(1)
+                        def buildDirectory = p.layout.buildDirectory.get().asFile
+
+                        // Where the compiled classes land depends on who compiled them:
+                        // the Kotlin Gradle plugin, AGP 9's built-in Kotlin, or javac.
+                        def projectClasses = []
+                        [
+                            "tmp/kotlin-classes/${variant}",
+                            "intermediates/built_in_kotlinc/${variant}/compile${capitalizedVariant}Kotlin/classes",
+                            "intermediates/javac/${variant}/classes",
+                        ].each { relative ->
+                            def dir = new File(buildDirectory, relative)
+                            if (dir.isDirectory()) {
+                                projectClasses << dir.absolutePath
+                            }
+                        }
+
+                        def resourceApk = findResourceApk(p, variant)
+                        def borrowingFromHost = false
+                        if (!resourceApk && resourceHost && resourceHostVariant) {
+                            resourceApk = findResourceApk(resourceHost, resourceHostVariant)
+                            borrowingFromHost = resourceApk != null
+                        }
+
+                        // El R class de un módulo library (compile_r_class_jar) es local, de solo
+                        // compilación — confirmado con javap: sus campos son "public static int"
+                        // (sin final), simples placeholders para compilar la library, nunca los
+                        // valores reales que terminan linkeados en un APK. Al no ser final, el
+                        // compilador no los inlinea: el bytecode del preview hace un read real del
+                        // campo en runtime, así que CUALQUIER R class que el classloader cargue
+                        // primero gana. Con el .ap_ prestado del host, el único R class con los
+                        // valores reales es el del host (su compile_and_runtime_*_r_class_jar trae
+                        // el no-namespaced de todas las dependencias, incluida esta library) — si
+                        // además metemos el R.jar placeholder de la library, puede ganar él y
+                        // romper la carga de cualquier recurso con errores sin relación aparente
+                        // (confirmado: así se rompía painterResource con
+                        // "Window_backgroundDimAmount", un styleable de Android que no es nuestro).
+                        if (borrowingFromHost) {
+                            def hostRClassJar = findRClassJar(resourceHost, resourceHostVariant)
+                            if (hostRClassJar != null) {
+                                projectClasses << hostRClassJar
+                            }
+                        } else {
+                            def rClassJar = findRClassJar(p, variant)
+                            if (rClassJar != null) {
+                                projectClasses << rClassJar
+                            }
+                        }
+
+                        def android = p.extensions.findByName('android')
+
+                        emit([
+                            project          : p.path,
+                            variant          : variant,
+                            availableVariants: variants,
+                            namespace        : android?.namespace,
+                            classPath        : projectClasses + dependencies.collect { it.absolutePath },
+                            projectClassPath : projectClasses,
+                            resourceApkPath  : resourceApk,
+                        ])
+                    }
+                }
+            }
+        }
+    }
+}
