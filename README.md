@@ -1,10 +1,71 @@
-# NeoDev
+<div align="center">
 
-Neovim configurado como entorno de desarrollo para **Kotlin / Android**
-(prioridad actual) con soporte secundario para **Angular / TypeScript**.
-Un solo script instala todo en macOS o Linux.
+# 🚀 NeoDev
 
-## Instalación
+<p>
+Neovim configurado como entorno de desarrollo para <strong>Kotlin / Android</strong>
+(prioridad actual), con soporte secundario para <strong>Angular / TypeScript</strong>.
+</p>
+
+</div>
+
+<hr>
+
+<h4 align="center">
+  <a href="#-instalación">Instalación</a>
+  ·
+  <a href="#-qué-ya-existía-y-qué-elegí">Decisiones técnicas</a>
+  ·
+  <a href="#arquitectura">Arquitectura</a>
+  ·
+  <a href="#️-requisitos">Requisitos</a>
+  ·
+  <a href="#keymaps-principales">Keymaps</a>
+</h4>
+
+<p align="center">
+  <a href="https://github.com/ppedro18/neodev/commits/main"><img alt="Último commit" src="https://img.shields.io/github/last-commit/ppedro18/neodev?style=for-the-badge"></a>
+  <a href="https://github.com/ppedro18/neodev/issues"><img alt="Issues" src="https://img.shields.io/github/issues/ppedro18/neodev?style=for-the-badge"></a>
+  <a href="https://github.com/ppedro18/neodev"><img alt="Tamaño del repo" src="https://img.shields.io/github/repo-size/ppedro18/neodev?style=for-the-badge"></a>
+  <a href="https://github.com/ppedro18/neodev/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/ppedro18/neodev?style=for-the-badge"></a>
+</p>
+
+Un solo script instala todo en macOS o Linux: Homebrew, Neovim, JDK 21,
+Kotlin, Gradle, Node, los LSP/DAP correctos y los plugins — sin tocar nada
+a mano.
+
+## ✨ Funcionalidades
+
+- **LSP oficial de Kotlin** ([kotlin-lsp](https://github.com/Kotlin/kotlin-lsp) de JetBrains, mismo motor que IntelliJ/Android Studio) con inlay hints, intentions, refactors y debugging real vía DAP.
+- **Build, run, logcat, devices/AVD y Gradle tasks** sin salir de nvim ([android-nvim-plugin](https://github.com/iamironz/android-nvim-plugin)), variant-aware de verdad.
+- **Preview de `@Preview` de Jetpack Compose** en una ventana nativa, renderizado con layoutlib — sin Android Studio ni emulador.
+- **Explorador, dashboard y picker unificados** con [Snacks.nvim](https://github.com/folke/snacks.nvim) — look de IDE moderno, bajo consumo.
+- **"Local History" tipo JetBrains** con [telescope-undo.nvim](https://github.com/debugloop/telescope-undo.nvim): deshacer un cambio puntual sin perder todo lo que escribiste después.
+- **Git integrado**: LazyGit (`<leader>gg`), diff real por archivo con Diffview, PRs/issues de GitHub con Octo.
+- **Formato y lint reales**: ktlint para Kotlin, eslint para Angular, diagnósticos con íconos y panel centralizado ([trouble.nvim](https://github.com/folke/trouble.nvim)).
+- **Herramientas Android propias** (`:Droid*`): mirror con scrcpy, inspector de red, navegación de Gradle — sin parchear ningún plugin de terceros.
+
+## ⚡️ Requisitos
+
+- macOS o Linux
+- Android SDK ya instalado (de Android Studio, o `sdkmanager`), con `adb` y
+  `emulator` en el PATH — `<leader>ao` (Device Manager de
+  `android-nvim-plugin`) lista los AVDs que ya existen, y también puede
+  crear uno nuevo o borrar uno.
+- `ANDROID_HOME`/`ANDROID_SDK_ROOT` apuntando al SDK — ver mensaje final de
+  `install.sh`.
+- [scrcpy](https://github.com/Genymobile/scrcpy) (`brew install scrcpy`,
+  ya en el `Brewfile`) para espejar la pantalla con `<leader>av` /
+  `:DroidMirror`.
+- Opcional, para `:DroidLayout`/`:DroidScreenshot`/`:DroidDocs`/`:DroidCreate`/
+  `:DroidSdk`/`:DroidLint`/`:DroidDeclaration`/`:DroidUsages`/`:DroidVersions`/
+  `:DroidStudioOpen`: [android-cli](https://developer.android.com/tools/agents)
+  (binario `android` en el PATH). No está en Homebrew, así que no va en el
+  `Brewfile`; sin instalarla, esos comandos simplemente avisan que falta.
+- Para GitHub (`octo.nvim`): `gh auth login` una vez (ya viene `gh` en el
+  `Brewfile`).
+
+## 🚀 Instalación
 
 ```bash
 git clone <tu-fork> ~/NeoDev
@@ -12,12 +73,23 @@ cd ~/NeoDev
 ./install.sh
 ```
 
-Esto: instala Homebrew si falta (funciona igual en macOS y Linux), instala
+<details>
+<summary><strong>Qué hace exactamente <code>install.sh</code></strong></summary>
+<br>
+
+Instala Homebrew si falta (funciona igual en macOS y Linux), instala
 Neovim + JDK 21 + Kotlin + Gradle + Node vía `Brewfile`, respalda tu
 `~/.config/nvim` actual si existe, enlaza este repo en su lugar, e instala
 plugins y servidores LSP/DAP de forma headless.
 
-Para revertir: `./uninstall.sh` (restaura tu config anterior desde el backup).
+Para revertir: `./uninstall.sh` (restaura tu config anterior desde el
+backup).
+
+**Importante**: una sesión de nvim que ya tenías abierta ANTES de correr
+`install.sh` no ve los plugins nuevos — nvim no recarga su config en
+caliente. Cerrala del todo (`:qa`) y abrí una nueva.
+
+</details>
 
 ## Qué ya existía, y qué elegí
 
@@ -84,7 +156,7 @@ de nvim:
 | Necesidad | Proyecto | Por qué sí/no |
 |---|---|---|
 | Build + run + logcat + devices/AVD + Gradle tasks | [iamironz/android-nvim-plugin](https://github.com/iamironz/android-nvim-plugin) | **Elegido** (revisado oct. 2026) — build variant-aware (lee `isDefault` de `buildTypes`/`productFlavors`), Gradle task browser con cache, logcat con filtros/regex/stack-trace-jump/auto-reconnect, device manager + AVD, menú interactivo (`:AndroidMenu`). Suite de tests propia, CI, docs estructuradas. El propio autor lo describe como joven ("buggy and probably leaks memory" en su README), pero verificado vía API de GitHub tiene 92★/5 forks y sigue recibiendo commits — mucho más uso real que la alternativa anterior |
-| Elegido antes, reemplazado | [AntoineGagnon/android.nvim](https://github.com/AntoineGagnon/android.nvim) | Usado hasta oct. 2026: cubría 4 comandos básicos, pero verificando fechas reales vía API de GitHub resultó tener **1 estrella** y quedó sin tocar a los 2 días de creado. Todo lo variant-aware se tuvo que reimplementar a mano encima (parcheando sus módulos internos). Esa config y sus parches quedan en [legacy/android-nvim-antoinegagnon/](legacy/android-nvim-antoinegagnon/) por si hace falta volver |
+| Elegido antes, reemplazado | [AntoineGagnon/android.nvim](https://github.com/AntoineGagnon/android.nvim) | Usado hasta oct. 2026: cubría 4 comandos básicos, pero verificando fechas reales vía API de GitHub resultó tener **1 estrella** y quedó sin tocar a los 2 días de creado. Todo lo variant-aware se tuvo que reimplementar a mano encima (parcheando sus módulos internos). Esa config y sus parches ya no están en el repo — confirmado que no los usaba nada, así que se eliminaron; quedan en el historial de git si hace falta volver |
 | Solo Gradle+AVD+ADB | [Marfien/astudio.nvim](https://github.com/Marfien/astudio.nvim) | No elegido: menos features que android-nvim-plugin y explícitamente no toca Kotlin (ya resuelto con kotlin-lsp) |
 | Compose `@Preview` | [ntsk/compose-preview.nvim](https://github.com/ntsk/compose-preview.nvim) | **Elegido** — único plugin real para esto: renderiza con layoutlib (Google) vía Gradle, sin Android Studio ni emulador. Primer uso descarga ~300MB. Tiene issues abiertos (sep. 2026) con configuration cache y `@Preview` sin argumentos; úsalo sabiendo que es joven. Su detección de variantes además **no funciona en módulos `com.android.library`** (solo `application`) — confirmado reproduciendo su Gradle task a mano; arreglado con un override local, ver abajo |
 | GitHub (PRs/issues) | [pwntester/octo.nvim](https://github.com/pwntester/octo.nvim) | **Elegido** — el mantenido activamente; usa `gh` CLI, que ya está en el `Brewfile` |
@@ -213,19 +285,17 @@ commit — lo usan tanto `android-nvim-plugin` (picker de device/AVD) como
 
 ### Que se vea y se sienta como un IDE
 
-- **Explorador lateral**: [neo-tree.nvim](https://github.com/nvim-neo-tree/neo-tree.nvim)
-  (`<leader>e`) — iconos, estado de git por archivo, y pestañas
-  File/Buffers/Git dentro del propio panel. Es lo que trae AstroNvim/LazyVim
-  por defecto; no hace falta todo el framework para tenerlo, es este plugin
-  suelto (reemplazó a nvim-tree, que era más simple pero menos "IDE").
+- **Explorador lateral y buscador**: [Snacks.nvim](https://github.com/folke/snacks.nvim)
+  Explorer (`<leader>e`) — iconos, estado de git por archivo, picker unificado
+  (`<leader>ff`/`<leader>fg`). Reemplazó a neo-tree: menos plugins sueltos,
+  mismo resultado, más liviano.
 - **Cmdline/mensajes flotantes**: [noice.nvim](https://github.com/folke/noice.nvim)
   — al tocar `:` sale un input flotante arriba en vez de la línea de abajo
   de siempre; mismo look de AstroNvim/LazyVim.
-- **"Recientes"**: [project.nvim](https://github.com/DrKJeff16/project.nvim)
-  (`<leader>fp`) — detecta la raíz del proyecto (Gradle, Angular, git...) y
+- **Dashboard y "recientes"**: el dashboard de inicio de Snacks.nvim
+  (`<leader>fp`) detecta la raíz del proyecto (Gradle, Angular, git...) y
   guarda historial, para saltar de proyecto sin cerrar nvim ni abrir otra
-  terminal. Usé el fork `DrKJeff16` porque el original (`ahmedkhalf`) está
-  sin mantenimiento.
+  terminal.
 - **"Open Folder"** (proyectos que todavía no abriste ninguna vez, no están
   en "recientes"): `<leader>fo` — abre yazi.nvim (ya instalado, ver abajo)
   arrancando en `~/Documents`; navegás con el file manager real. No agregué
@@ -234,16 +304,18 @@ commit — lo usan tanto `android-nvim-plugin` (picker de device/AVD) como
   `<leader>fo`/`<leader>-`/`<leader>cw` (yazi) preguntan, al elegir un
   proyecto, si seguir en esta misma ventana de nvim o abrir una Ghostty
   nueva aparte (sin cerrar la actual) — como "Open in New Window" de
-  cualquier IDE. Usa los hooks reales de cada plugin (`ProjectAttachPre`/
-  `Post` de project.nvim, `yazi_closed_successfully` de yazi.nvim), no
-  `change_neovim_cwd_on_close` a ciegas.
+  cualquier IDE.
 - **Pestañas de archivos abiertos arriba**: [bufferline.nvim](https://github.com/akinsho/bufferline.nvim)
   (`<S-h>`/`<S-l>` para moverte, `<leader>bd` para cerrar).
 - **Gestor de archivos completo**: [yazi.nvim](https://github.com/mikavilpas/yazi.nvim)
   (`<leader>-`) — el yazi real (terminal file manager) en una ventana
   flotante: previews, iconos, git status, cortar/pegar/renombrar sin salir
-  de nvim. Complementa a neo-tree (panel fijo liviano) para cuando necesitas
-  operar archivos de verdad, no solo navegar.
+  de nvim. Complementa al explorador de Snacks (panel fijo liviano) para
+  cuando necesitas operar archivos de verdad, no solo navegar.
+- **"Local history" de cambios**: [telescope-undo.nvim](https://github.com/debugloop/telescope-undo.nvim)
+  (`<leader>u`) — navegá el árbol de undo del buffer con diffs en vivo;
+  `<cr>` sobre un estado pregunta y deshace justo ese cambio puntual, sin
+  perder lo que escribiste después.
 
 **Nerd Font obligatoria**: todo lo anterior (+ lualine, which-key) usa
 glifos de [Nerd Font](https://www.nerdfonts.com/). Sin ella ves `?` en vez
@@ -258,10 +330,6 @@ andando con los íconos correctos sin que toques nada. Elegí Ghostty sobre
 Kitty por ser más simple de configurar (menos perillas) con el mismo
 rendimiento GPU; si preferís Kitty u otra, el mismo `font-family =
 JetBrainsMono Nerd Font Mono` aplica en su config.
-
-**Importante**: una sesión de nvim que ya tenías abierta ANTES de correr
-`install.sh` no ve los plugins nuevos — nvim no recarga su config en
-caliente. Cerrala del todo (`:qa`) y abrí una nueva.
 
 ### Espaciado (indentación)
 
@@ -403,36 +471,18 @@ Para verlo en caliente dentro de nvim, sin leer código:
   lista, pero con comentarios que agrupan cada bloque (`-- Kotlin / Android`
   / `-- Angular / TypeScript` / `-- Compartido`).
 
-## Requisitos
-
-- macOS o Linux
-- Android SDK ya instalado (de Android Studio, o `sdkmanager`), con `adb` y
-  `emulator` en el PATH — `<leader>ao` (Device Manager de
-  `android-nvim-plugin`) lista los AVDs que ya existen, y también puede
-  crear uno nuevo o borrar uno.
-- `ANDROID_HOME`/`ANDROID_SDK_ROOT` apuntando al SDK — ver mensaje final de
-  `install.sh`.
-- [scrcpy](https://github.com/Genymobile/scrcpy) (`brew install scrcpy`,
-  ya en el `Brewfile`) para espejar la pantalla con `<leader>av` /
-  `:DroidMirror`.
-- Opcional, para `:DroidLayout`/`:DroidScreenshot`/`:DroidDocs`/`:DroidCreate`/
-  `:DroidSdk`/`:DroidLint`/`:DroidDeclaration`/`:DroidUsages`/`:DroidVersions`/
-  `:DroidStudioOpen`: [android-cli](https://developer.android.com/tools/agents)
-  (binario `android` en el PATH). No está en Homebrew, así que no va en el
-  `Brewfile`; sin instalarla, esos comandos simplemente avisan que falta.
-- Para GitHub (`octo.nvim`): `gh auth login` una vez (ya viene `gh` en el
-  `Brewfile`).
-
 ## Keymaps principales
 
 | Tecla | Acción |
 |---|---|
 | `<leader>ff` / `<leader>fg` | Buscar archivos / texto (Telescope) |
-| `<leader>e` | Explorador de archivos (neo-tree) |
+| `<leader>e` | Explorador de archivos (Snacks Explorer) |
 | `<leader>-` / `<leader>cw` | Yazi: en el archivo actual / en el directorio del proyecto |
 | `<S-h>` / `<S-l>` | Buffer anterior / siguiente |
 | `<leader>bd` | Cerrar buffer |
 | `<leader>gg` | LazyGit (ventana flotante) |
+| `<leader>gd` | Diff de cambios sin commitear (Diffview) |
+| `<leader>u` | Historial de cambios / undo tree (telescope-undo.nvim) |
 | `gd` / `gr` / `K` | Ir a definición / referencias / hover (LSP) |
 | `<leader>rn` / `<leader>ca` | Renombrar / code action (LSP) |
 | `<leader>f` | Formatear buffer (ktlint en `.kt`, también al guardar) |
@@ -455,7 +505,78 @@ Para verlo en caliente dentro de nvim, sin leer código:
 | `s` / `S` | Flash: saltar a cualquier texto visible / a un nodo de treesitter |
 | `ys)` `cs"'` `ds"` (etc.) | mini.surround: agregar / cambiar / quitar comillas, paréntesis... |
 
-## Roadmap
+## 🙏 Créditos
+
+Nada de esto es desde cero — es integrar y, donde hacía falta, parchar o
+extender el trabajo de otros. Gracias a:
+
+**Motor**
+[folke/lazy.nvim](https://github.com/folke/lazy.nvim)
+
+**LSP / lenguajes**
+[Kotlin/kotlin-lsp](https://github.com/Kotlin/kotlin-lsp) ·
+[AlexandrosAlexiou/kotlin.nvim](https://github.com/AlexandrosAlexiou/kotlin.nvim) ·
+[joeveiga/ng.nvim](https://github.com/joeveiga/ng.nvim) ·
+[neovim/nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) ·
+[mason-org/mason.nvim](https://github.com/mason-org/mason.nvim) ·
+[mason-org/mason-lspconfig.nvim](https://github.com/mason-org/mason-lspconfig.nvim) ·
+[WhoIsSethDaniel/mason-tool-installer.nvim](https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim) ·
+[nvim-treesitter/nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter) ·
+[redhat-developer/vscode-xml](https://github.com/redhat-developer/vscode-xml) (lemminx)
+
+**Android**
+[iamironz/android-nvim-plugin](https://github.com/iamironz/android-nvim-plugin) ·
+[ntsk/compose-preview.nvim](https://github.com/ntsk/compose-preview.nvim) ·
+[Genymobile/scrcpy](https://github.com/Genymobile/scrcpy) ·
+[rizukirr/droid-nvim](https://github.com/rizukirr/droid-nvim) (inspiración para `:Droid*`)
+
+**Git / GitHub**
+[lewis6991/gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim) ·
+[sindrets/diffview.nvim](https://github.com/sindrets/diffview.nvim) ·
+[pwntester/octo.nvim](https://github.com/pwntester/octo.nvim) ·
+[jesseduffield/lazygit](https://github.com/jesseduffield/lazygit) ·
+[cli/cli](https://github.com/cli/cli) (`gh`)
+
+**UI / experiencia**
+[folke/snacks.nvim](https://github.com/folke/snacks.nvim) ·
+[folke/noice.nvim](https://github.com/folke/noice.nvim) ·
+[folke/which-key.nvim](https://github.com/folke/which-key.nvim) ·
+[folke/trouble.nvim](https://github.com/folke/trouble.nvim) ·
+[folke/flash.nvim](https://github.com/folke/flash.nvim) ·
+[folke/persistence.nvim](https://github.com/folke/persistence.nvim) ·
+[akinsho/bufferline.nvim](https://github.com/akinsho/bufferline.nvim) ·
+[mikavilpas/yazi.nvim](https://github.com/mikavilpas/yazi.nvim) ·
+[debugloop/telescope-undo.nvim](https://github.com/debugloop/telescope-undo.nvim) ·
+[nvim-telescope/telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) ·
+[axkirillov/hbac.nvim](https://github.com/axkirillov/hbac.nvim) ·
+[lukas-reineke/indent-blankline.nvim](https://github.com/lukas-reineke/indent-blankline.nvim) ·
+[nvim-tree/nvim-web-devicons](https://github.com/nvim-tree/nvim-web-devicons) ·
+[nvim-lualine/lualine.nvim](https://github.com/nvim-lualine/lualine.nvim) ·
+[ellisonleao/gruvbox.nvim](https://github.com/ellisonleao/gruvbox.nvim)
+
+**Edición y snippets**
+[nvim-mini/mini.nvim](https://github.com/nvim-mini/mini.nvim) ·
+[windwp/nvim-ts-autotag](https://github.com/windwp/nvim-ts-autotag) ·
+[rafamadriz/friendly-snippets](https://github.com/rafamadriz/friendly-snippets) ·
+[L3MON4D3/LuaSnip](https://github.com/L3MON4D3/LuaSnip) ·
+[hrsh7th/nvim-cmp](https://github.com/hrsh7th/nvim-cmp) ·
+[MagicDuck/grug-far.nvim](https://github.com/MagicDuck/grug-far.nvim)
+
+**Calidad y debug**
+[stevearc/conform.nvim](https://github.com/stevearc/conform.nvim) ·
+[mfussenegger/nvim-lint](https://github.com/mfussenegger/nvim-lint) ·
+[pinterest/ktlint](https://github.com/pinterest/ktlint) ·
+[mfussenegger/nvim-dap](https://github.com/mfussenegger/nvim-dap) ·
+[rcarriga/nvim-dap-ui](https://github.com/rcarriga/nvim-dap-ui)
+
+**Herramientas externas (no son plugins de Neovim)**
+[Ghostty](https://ghostty.org/) ·
+[Nerd Fonts](https://www.nerdfonts.com/)
+
+Más las dependencias chicas que arrastran varios de los de arriba
+(`nvim-lua/plenary.nvim`, `MunifTanjim/nui.nvim`, `nvim-neotest/nvim-nio`).
+
+## 🗺️ Roadmap
 
 Angular queda con lo esencial (LSP + lint); si el foco cambia hacia
 frontend, lo siguiente sería snippets de componentes y DAP para Node/Chrome.
